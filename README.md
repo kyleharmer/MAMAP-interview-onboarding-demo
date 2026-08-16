@@ -1,4 +1,3 @@
-# MAMAP-interview-onboarding-demo
 # MAMAP Onboarding Demo
 
 A demo build of the Michigan Advanced Manufacturing Adoption Program (MAMAP)
@@ -95,3 +94,33 @@ per the current scope.
   Standards Tool and says so explicitly.
 - **Scoring rubric and weighted-total math**: fully real and functional —
   not a mockup. The weights, formula, and recommendation bands are all live.
+
+## 7. Changelog
+
+The app displays its current version number in the top gold bar (e.g. `v1.4.0`).
+Update `APP_VERSION` in `src/App.jsx` and add an entry here with every
+meaningful change, so this file always reflects what's actually deployed.
+
+- **1.4.0** — Fixed a dead-end: the "Back" button on the first step of the
+  application form was disabled with no way to return to the landing page.
+  It now routes Home from step 1. Added Home / Visit Automation Alley /
+  Share-by-email actions to the post-submission confirmation screen — the
+  share link builds a pre-filled email using the page's own live URL, so it
+  always points to wherever this is actually hosted.
+- **1.3.0** — Version number now shown in the top bar. Automation Alley logo
+  links out to automationalley.com. "Suggest starting scores" redesigned as
+  a clearly clickable primary button (solid fill, shadow, press animation)
+  instead of a subtle tinted link.
+- **1.2.0** — Added a marketing landing page ahead of the application form:
+  program summary, who administers/funds it, eligibility, and benefits, with
+  an explicit "Apply now" action before the form is shown.
+- **1.1.0** — Broadened eligibility/project questions to cover the program's
+  full scope (automation, robotics, and AI) rather than automation alone;
+  added a technology-focus multi-select that feeds both the rubric and the
+  AI/heuristic scoring prompt.
+- **1.0.0** — Initial functional build: multi-step public application with
+  live SBA-proxy eligibility check, Vetting Committee view with a real
+  weighted 6-criterion scoring rubric, AI-assisted starting scores (with an
+  automatic offline heuristic fallback), a program pipeline Dashboard, and a
+  demo-only sign-in gate on the internal views. Deployed via GitHub Actions
+  to GitHub Pages.
