@@ -6,7 +6,7 @@ import {
 import {
   CheckCircle2, XCircle, AlertTriangle, ChevronRight, ChevronLeft,
   Building2, ClipboardCheck, LayoutDashboard, ExternalLink, Lock,
-  LogOut, Sparkles, Loader2, Info,
+  LogOut, Sparkles, Loader2, Info, ArrowRight, Home, Mail,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -78,6 +78,7 @@ const PRIMARY_GOALS = [
 ];
 
 const TARGET_COMPANIES = 240;
+const APP_VERSION = "1.4.0";
 
 const STATUS_META = {
   Submitted: { color: COLORS.slate, bg: "#EFEFEE" },
@@ -181,6 +182,17 @@ function eligibilityCheck(employees, revenue) {
   return "ineligible";
 }
 
+function buildShareMailto() {
+  const url = typeof window !== "undefined" ? window.location.href : "";
+  const subject = encodeURIComponent("No-cost automation, robotics & AI support for Michigan manufacturers — MAMAP");
+  const body = encodeURIComponent(
+    `Hi,\n\nI just applied to the Michigan Advanced Manufacturing Adoption Program (MAMAP) — a no-cost program ` +
+    `from Automation Alley that helps small Michigan manufacturers adopt automation, robotics, and AI.\n\n` +
+    `Thought this might be worth a look for you or someone you know:\n${url}\n\n`
+  );
+  return `mailto:?subject=${subject}&body=${body}`;
+}
+
 async function fetchAiSuggestion(app) {
   const prompt = `You are assisting a grant program manager in reviewing a manufacturer's application for a Michigan automation-adoption technical assistance program. Score the application against these six criteria, each 1-5 (1=weak, 5=strong), based only on the information given. Respond with ONLY raw JSON, no markdown fences, no preamble, matching exactly this schema:
 {"techReadiness":{"score":1,"rationale":"one short sentence"},"impact":{"score":1,"rationale":"..."},"feasibility":{"score":1,"rationale":"..."},"sustainability":{"score":1,"rationale":"..."},"alignment":{"score":1,"rationale":"..."},"serviceFit":{"score":1,"rationale":"..."}}
@@ -270,7 +282,8 @@ function localHeuristicSuggestion(app) {
 function Logo({ mode = "dark" }) {
   const fg = mode === "dark" ? COLORS.paper : COLORS.ink;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+    <a href="https://automationalley.com" target="_blank" rel="noreferrer"
+      style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", cursor: "pointer" }}>
       <svg width="26" height="26" viewBox="0 0 100 100" fill="none">
         <path d="M16 10 H58 L84 36 V90 H68 V52 L16 52 Z M16 52 H68 V90 H16 Z" fill={COLORS.gold} />
         <rect x="16" y="24" width="34" height="14" fill={mode === "dark" ? COLORS.ink : COLORS.paper} />
@@ -279,7 +292,7 @@ function Logo({ mode = "dark" }) {
       <span style={{ fontFamily: "Poppins, sans-serif", fontWeight: 700, fontSize: 15, color: fg, letterSpacing: 0.2 }}>
         Automation Alley
       </span>
-    </div>
+    </a>
   );
 }
 
@@ -434,6 +447,7 @@ function LoginGate({ onLogin }) {
 // APPLY VIEW
 // ---------------------------------------------------------------------------
 function ApplyView({ onSubmit }) {
+  const [showForm, setShowForm] = useState(false);
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({
     company: "", contact: "", email: "", phone: "", city: "",
@@ -483,19 +497,41 @@ function ApplyView({ onSubmit }) {
           The vetting committee reviews applications on a monthly cadence — you'll hear back at{" "}
           <strong>{form.email}</strong> once a decision is made.
         </p>
-        <button
-          onClick={() => {
-            setSubmitted(null); setStep(0);
-            setForm({ company: "", contact: "", email: "", phone: "", city: "", employees: "", revenue: "",
-              activity: "", need: "", interest: SUBRECIPIENTS[0], jobsImpact: "", automationLevel: AUTOMATION_LEVELS[0],
-              timeline: TIMELINES[0], primaryGoal: PRIMARY_GOALS[0], sustainPlan: "", techFocus: [] });
-          }}
-          style={btnGold}
-        >
-          Submit another application
-        </button>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 24, flexWrap: "wrap" }}>
+          <button
+            onClick={() => {
+              setSubmitted(null); setStep(0);
+              setForm({ company: "", contact: "", email: "", phone: "", city: "", employees: "", revenue: "",
+                activity: "", need: "", interest: SUBRECIPIENTS[0], jobsImpact: "", automationLevel: AUTOMATION_LEVELS[0],
+                timeline: TIMELINES[0], primaryGoal: PRIMARY_GOALS[0], sustainPlan: "", techFocus: [] });
+            }}
+            style={btnGold}
+          >
+            Submit another application
+          </button>
+          <button
+            onClick={() => { setSubmitted(null); setShowForm(false); setStep(0); }}
+            style={btnGhost}
+          >
+            <Home size={16} /> Home
+          </button>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+          <a href="https://automationalley.com" target="_blank" rel="noreferrer" style={{ ...btnGhost, textDecoration: "none" }}>
+            <ExternalLink size={16} /> Visit Automation Alley
+          </a>
+          <a href={buildShareMailto()} style={{ ...btnGhost, textDecoration: "none" }}>
+            <Mail size={16} /> Share with another manufacturer
+          </a>
+        </div>
       </div>
     );
+  }
+
+  if (!showForm) {
+    return <LandingIntro onApply={() => setShowForm(true)} />;
   }
 
   return (
@@ -637,8 +673,11 @@ function ApplyView({ onSubmit }) {
           </div>
 
           <div style={{ display: "flex", justifyContent: "space-between", padding: "16px 32px", background: COLORS.stone, borderTop: `1px solid ${COLORS.line}` }}>
-            <button onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0} style={{ ...btnGhost, opacity: step === 0 ? 0.35 : 1 }}>
-              <ChevronLeft size={16} /> Back
+            <button
+              onClick={() => step === 0 ? setShowForm(false) : setStep((s) => Math.max(0, s - 1))}
+              style={btnGhost}
+            >
+              <ChevronLeft size={16} /> {step === 0 ? "Home" : "Back"}
             </button>
             {step < 3 ? (
               <button onClick={() => setStep((s) => s + 1)} disabled={!canAdvance()} style={{ ...btnGold, opacity: canAdvance() ? 1 : 0.4 }}>
@@ -650,6 +689,105 @@ function ApplyView({ onSubmit }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LandingIntro({ onApply }) {
+  const benefits = [
+    "100% free technical assistance — no cost to your business at any point",
+    "Matched with the right partner: a university engineering institute, a statewide manufacturing association, or a nonprofit technology center",
+    "Support across automation, robotics, and AI adoption — not just one narrow technology",
+    "Outcome tracking and check-ins for 6 months after you're awarded, so the support doesn't just stop at implementation",
+  ];
+  const eligibility = [
+    "Michigan-based manufacturer",
+    "Qualifies as a small business under SBA size standards",
+    "Has a concrete automation, robotics, or AI adoption need",
+  ];
+
+  return (
+    <div>
+      <div style={{ background: COLORS.ink, padding: "72px 20px 90px", textAlign: "center" }}>
+        <div style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: COLORS.gold, letterSpacing: 1.5, textTransform: "uppercase" }}>
+          Michigan Advanced Manufacturing Adoption Program (MAMAP)
+        </div>
+        <h1 style={{ fontFamily: "Poppins, sans-serif", fontWeight: 700, fontSize: "clamp(28px, 4vw, 44px)", color: COLORS.paper, margin: "16px 0 14px", lineHeight: 1.15, maxWidth: 720, marginLeft: "auto", marginRight: "auto" }}>
+          No-cost technical assistance to adopt automation, robotics, and AI on your floor.
+        </h1>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#C7C7C9", maxWidth: 560, margin: "0 auto" }}>
+          A statewide program connecting qualifying small Michigan manufacturers with expert, fully-funded
+          technical assistance — from first assessment through implementation.
+        </p>
+      </div>
+
+      <div style={{ maxWidth: 820, margin: "-50px auto 0", padding: "0 20px 80px" }}>
+        <div style={{ background: COLORS.paper, border: `1px solid ${COLORS.line}`, borderRadius: 12, boxShadow: "0 12px 40px rgba(10,10,11,0.08)", padding: 36 }}>
+
+          <Section title="What this program does">
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14.5, color: COLORS.slate, lineHeight: 1.7 }}>
+              MAMAP is a no-cost technical assistance program helping small Michigan manufacturers adopt
+              automation, robotics, and AI. Once accepted, your company is matched with one of three specialized
+              service partners who deliver the hands-on technical work — funded entirely by the program, at no
+              cost to you.
+            </p>
+          </Section>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, margin: "28px 0" }}>
+            <Section title="Administered by">
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: COLORS.slate, lineHeight: 1.6 }}>
+                <strong style={{ color: COLORS.ink }}>Automation Alley</strong> is the program's prime recipient,
+                responsible for outreach, application review, and connecting awarded companies to services.
+              </p>
+            </Section>
+            <Section title="Funded by">
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: COLORS.slate, lineHeight: 1.6 }}>
+                The <strong style={{ color: COLORS.ink }}>Michigan Innovation Authority (MIA)</strong> — a
+                $1.85M award supporting technical assistance for up to 240 Michigan manufacturers.
+              </p>
+            </Section>
+          </div>
+
+          <Section title="Who's eligible">
+            <ul style={{ margin: 0, paddingLeft: 20, fontFamily: "Inter, sans-serif", fontSize: 14, color: COLORS.slate, lineHeight: 1.8 }}>
+              {eligibility.map((e) => <li key={e}>{e}</li>)}
+            </ul>
+          </Section>
+
+          <div style={{ margin: "28px 0" }}>
+            <Section title="What you get">
+              <div style={{ display: "grid", gap: 10 }}>
+                {benefits.map((b) => (
+                  <div key={b} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <CheckCircle2 size={16} color={COLORS.good} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: COLORS.slate, lineHeight: 1.5 }}>{b}</span>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          </div>
+
+          <div style={{ textAlign: "center", paddingTop: 20, borderTop: `1px solid ${COLORS.line}` }}>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: COLORS.slate, marginBottom: 16 }}>
+              Interested? The application takes about 10 minutes.
+            </p>
+            <button onClick={onApply} style={{ ...btnGold, fontSize: 15, padding: "12px 28px" }}>
+              Apply now <ArrowRight size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children }) {
+  return (
+    <div>
+      <h3 style={{ fontFamily: "Poppins, sans-serif", fontWeight: 700, fontSize: 13, color: COLORS.ink, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 10 }}>
+        {title}
+      </h3>
+      {children}
     </div>
   );
 }
@@ -843,28 +981,34 @@ function VettingView({ applications, setApplications, user, onLogout }) {
           </div>
           <ScoreBar scores={selected.scores} />
 
-          <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <button onClick={requestAiSuggestion} disabled={aiLoading} style={{
-              display: "inline-flex", alignItems: "center", gap: 6, background: COLORS.aiBg, color: COLORS.aiText,
-              border: `1px solid ${COLORS.aiText}33`, borderRadius: 7, padding: "8px 14px", fontFamily: "Inter, sans-serif",
-              fontWeight: 700, fontSize: 12.5, cursor: aiLoading ? "default" : "pointer", opacity: aiLoading ? 0.7 : 1,
-            }}>
-              {aiLoading ? <Loader2 size={14} className="spin" /> : <Sparkles size={14} />}
-              {aiLoading ? "Generating suggestion…" : "Suggest starting scores"}
-            </button>
-            {selected.aiSource && (
-              <span style={{
-                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 999,
-                color: selected.aiSource === "live" ? COLORS.aiText : COLORS.slate,
-                background: selected.aiSource === "live" ? COLORS.aiBg : "#EFEFEE",
-              }}>
-                {selected.aiSource === "live" ? "Live AI" : "Heuristic (offline mode)"}
-              </span>
-            )}
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: COLORS.slateLight }}>
+          <div style={{ marginTop: 16, padding: 14, background: "#FAF8FF", border: `1px solid ${COLORS.aiText}22`, borderRadius: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+              <button onClick={requestAiSuggestion} disabled={aiLoading} style={{
+                display: "inline-flex", alignItems: "center", gap: 8, background: aiLoading ? COLORS.aiText : COLORS.aiText,
+                color: COLORS.paper, border: "none", borderRadius: 8, padding: "12px 20px", fontFamily: "Inter, sans-serif",
+                fontWeight: 700, fontSize: 13.5, cursor: aiLoading ? "default" : "pointer", opacity: aiLoading ? 0.75 : 1,
+                boxShadow: aiLoading ? "none" : "0 3px 10px rgba(91,63,168,0.35)", transition: "transform 0.1s ease",
+              }}
+              onMouseDown={(e) => { if (!aiLoading) e.currentTarget.style.transform = "scale(0.97)"; }}
+              onMouseUp={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+              >
+                {aiLoading ? <Loader2 size={16} className="spin" /> : <Sparkles size={16} />}
+                {aiLoading ? "Generating suggestion…" : "✨ Suggest starting scores"}
+              </button>
+              {selected.aiSource && (
+                <span style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, padding: "4px 10px", borderRadius: 999,
+                  color: selected.aiSource === "live" ? COLORS.aiText : COLORS.slate,
+                  background: selected.aiSource === "live" ? COLORS.aiBg : "#EFEFEE",
+                }}>
+                  {selected.aiSource === "live" ? "Live AI" : "Heuristic (offline mode)"}
+                </span>
+              )}
+            </div>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: COLORS.slateLight, margin: "8px 0 0" }}>
               Sets a starting point from the application — review and adjust every value below. Uses live AI when
               connected; falls back to a transparent rule-based estimate otherwise.
-            </span>
+            </p>
           </div>
           {aiError && <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: COLORS.bad, marginTop: 8 }}>{aiError}</p>}
 
@@ -1061,7 +1205,7 @@ export default function App() {
 
       <div style={{ background: COLORS.gold, padding: "6px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.ink, fontWeight: 700 }}>
-          MICHIGAN ADVANCED MANUFACTURING ADOPTION PROGRAM
+          MICHIGAN ADVANCED MANUFACTURING ADOPTION PROGRAM <span style={{ opacity: 0.6, fontWeight: 500 }}>v{APP_VERSION}</span>
         </span>
         <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: COLORS.ink }}>
           {applications.length} applications on file
