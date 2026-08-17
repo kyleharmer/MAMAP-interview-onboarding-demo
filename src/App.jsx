@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { ref as dbRef, onValue, set as dbSet, get as dbGet } from "firebase/database";
+import { db } from "./firebase.js";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, CartesianGrid,
@@ -78,7 +80,7 @@ const PRIMARY_GOALS = [
 ];
 
 const TARGET_COMPANIES = 240;
-const APP_VERSION = "1.4.0";
+const APP_VERSION = "1.5.0";
 
 const STATUS_META = {
   Submitted: { color: COLORS.slate, bg: "#EFEFEE" },
@@ -93,7 +95,7 @@ const STATUS_META = {
 // ---------------------------------------------------------------------------
 const seedApplications = () => [
   {
-    ref: "MAMAP-2026-0001", company: "Kettering Precision Tool", contact: "Dana Ruiz",
+    ref: "MAMAP-2026-0001", submittedAt: Date.now() - 5 * 24 * 60 * 60 * 1000, company: "Kettering Precision Tool", contact: "Dana Ruiz",
     email: "dana@ketteringprecision.example", employees: 38, revenue: 6200000,
     activity: "Precision CNC tooling for automotive suppliers",
     need: "Robotic pick-and-place to reduce manual handling on the finishing line.",
@@ -106,7 +108,7 @@ const seedApplications = () => [
     aiRationale: null,
   },
   {
-    ref: "MAMAP-2026-0002", company: "Wolverine Sheet Metal", contact: "Marcus Webb",
+    ref: "MAMAP-2026-0002", submittedAt: Date.now() - 10 * 24 * 60 * 60 * 1000, company: "Wolverine Sheet Metal", contact: "Marcus Webb",
     email: "marcus@wolverinesheet.example", employees: 112, revenue: 18500000,
     activity: "Custom sheet metal fabrication",
     need: "Predictive maintenance sensors on 6 stamping presses.",
@@ -119,7 +121,7 @@ const seedApplications = () => [
     aiRationale: null,
   },
   {
-    ref: "MAMAP-2026-0003", company: "Great Lakes Composite Works", contact: "Priya Nandan",
+    ref: "MAMAP-2026-0003", submittedAt: Date.now() - 15 * 24 * 60 * 60 * 1000, company: "Great Lakes Composite Works", contact: "Priya Nandan",
     email: "priya@glcomposite.example", employees: 24, revenue: 3100000,
     activity: "Carbon-fiber components for aerospace subassemblies",
     need: "Quality inspection automation using machine vision.",
@@ -130,7 +132,7 @@ const seedApplications = () => [
     scores: null, notes: "", aiRationale: null,
   },
   {
-    ref: "MAMAP-2026-0004", company: "Saginaw Valley Fastener Co.", contact: "Tom Okafor",
+    ref: "MAMAP-2026-0004", submittedAt: Date.now() - 20 * 24 * 60 * 60 * 1000, company: "Saginaw Valley Fastener Co.", contact: "Tom Okafor",
     email: "tom@svfastener.example", employees: 640, revenue: 92000000,
     activity: "High-volume fastener manufacturing",
     need: "Full production-line digital twin.",
@@ -143,7 +145,7 @@ const seedApplications = () => [
     aiRationale: null,
   },
   {
-    ref: "MAMAP-2026-0005", company: "Flint Robotics Supply", contact: "Angela Torres",
+    ref: "MAMAP-2026-0005", submittedAt: Date.now() - 25 * 24 * 60 * 60 * 1000, company: "Flint Robotics Supply", contact: "Angela Torres",
     email: "angela@flintrobotics.example", employees: 57, revenue: 9800000,
     activity: "Robotic end-effector manufacturing",
     need: "MES integration to connect floor equipment to ERP.",
@@ -1179,11 +1181,55 @@ function TopStrip({ user, onLogout }) {
 // APP SHELL
 // ---------------------------------------------------------------------------
 export default function App() {
-  const [applications, setApplications] = useState(seedApplications());
+  const [applications, setApplications] = useState([]);
+  const [syncStatus, setSyncStatus] = useState("connecting"); // connecting | live | offline
   const [view, setView] = useState("apply");
   const [user, setUser] = useState(null);
 
-  const addApplication = (app) => setApplications((prev) => [app, ...prev]);
+  // One-time seed if the database is empty, then subscribe to live updates.
+  // Every visitor sees the same data, kept in sync in real time.
+  useEffect(() => {
+    const appsRef = dbRef(db, "applications");
+
+    dbGet(appsRef)
+      .then((snapshot) => {
+        if (!snapshot.exists()) {
+          const seedObj = {};
+          seedApplications().forEach((a) => { seedObj[a.ref] = a; });
+          return dbSet(appsRef, seedObj);
+        }
+      })
+      .catch(() => setSyncStatus("offline"));
+
+    const unsubscribe = onValue(
+      appsRef,
+      (snapshot) => {
+        const val = snapshot.val() || {};
+        const list = Object.values(val).sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+        setApplications(list);
+        setSyncStatus("live");
+      },
+      () => setSyncStatus("offline")
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Optimistic local update + persist to Firebase. Every other open tab
+  // (including the interviewer's) picks up the change via the listener above.
+  const persistApplications = (updater) => {
+    setApplications((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      next.forEach((a) => dbSet(dbRef(db, `applications/${a.ref}`), a));
+      return next;
+    });
+  };
+
+  const addApplication = (app) => {
+    const withTimestamp = { ...app, submittedAt: Date.now() };
+    setApplications((prev) => [withTimestamp, ...prev]);
+    dbSet(dbRef(db, `applications/${withTimestamp.ref}`), withTimestamp);
+  };
   const handleLogout = () => { setUser(null); setView("apply"); };
 
   const NAV = [
@@ -1207,7 +1253,18 @@ export default function App() {
         <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 11, color: COLORS.ink, fontWeight: 700 }}>
           MICHIGAN ADVANCED MANUFACTURING ADOPTION PROGRAM <span style={{ opacity: 0.6, fontWeight: 500 }}>v{APP_VERSION}</span>
         </span>
-        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: COLORS.ink }}>
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11.5, color: COLORS.ink, display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, fontWeight: 700,
+            padding: "2px 8px", borderRadius: 999,
+            background: syncStatus === "live" ? "#1F4D2F22" : syncStatus === "offline" ? "#5C1A1A22" : "#00000022",
+          }}>
+            <span style={{
+              width: 6, height: 6, borderRadius: "50%",
+              background: syncStatus === "live" ? "#1F4D2F" : syncStatus === "offline" ? "#5C1A1A" : COLORS.ink,
+            }} />
+            {syncStatus === "live" ? "Live" : syncStatus === "offline" ? "Offline (local only)" : "Connecting…"}
+          </span>
           {applications.length} applications on file
         </span>
       </div>
@@ -1238,7 +1295,7 @@ export default function App() {
       </div>
 
       {view === "apply" && <ApplyView onSubmit={addApplication} />}
-      {view === "vetting" && (user ? <VettingView applications={applications} setApplications={setApplications} user={user} onLogout={handleLogout} /> : <LoginGate onLogin={setUser} />)}
+      {view === "vetting" && (user ? <VettingView applications={applications} setApplications={persistApplications} user={user} onLogout={handleLogout} /> : <LoginGate onLogin={setUser} />)}
       {view === "dashboard" && (user ? <DashboardView applications={applications} user={user} onLogout={handleLogout} /> : <LoginGate onLogin={setUser} />)}
 
       <div style={{ textAlign: "center", padding: "24px", fontFamily: "Inter, sans-serif", fontSize: 11.5, color: COLORS.slateLight }}>
