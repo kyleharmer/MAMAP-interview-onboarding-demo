@@ -4,9 +4,10 @@ A demo build of the Michigan Advanced Manufacturing Adoption Program (MAMAP)
 application/vetting/dashboard flow, built for the Automation Alley Grant
 Program Manager assessment.
 
-**This is a static, front-end-only demo.** There is no backend and no
-database. All application data lives in memory in the visitor's browser tab
-and resets on refresh — see "How data works" below before you demo this live.
+**This is a demo build with a real (but intentionally lightweight) backend.**
+Application and scoring data is stored in Firebase Realtime Database and
+syncs live across every visitor — see "How data works" below for exactly
+what that means and what's still demo-only (the login gate, notably).
 
 ## 1. Run it locally
 
@@ -39,32 +40,43 @@ under a minute).
 
 ## 3. How data works (read this before sending the link)
 
-Every application, score, and login is stored in React state — plain
-JavaScript memory in that one browser tab. There is no server and nothing is
-saved anywhere:
+Application and scoring data lives in a real Firebase Realtime Database, not
+just browser memory:
 
-- If **you** open the link and add a test company, only your tab sees it.
-  Refresh, and it's gone.
-- If you **share the link**, whoever opens it always starts from the same
-  baseline data below — they will never see anything you typed in your own
-  session, no matter how long you leave it open.
+- If **you** add a test company or score an application, it's written to
+  Firebase immediately and visible to anyone else with the link — including
+  after you close the tab or refresh.
+- If you **share the link**, whoever opens it sees the same live data you
+  do, and changes either of you make sync to the other in real time (no
+  refresh needed).
+- The top bar shows a **Live** / **Connecting…** / **Offline (local only)**
+  indicator so it's always clear whether you're actually looking at synced
+  data.
+- The sign-in on Vetting Committee / Dashboard is still explicitly **not**
+  real authentication (see section 6) — it doesn't gate who can write data,
+  only what the current browser tab can see labeled as "signed in."
 
-## 4. Adding or changing test companies (the simple way)
+## 4. Adding or changing test companies
 
-Since this doesn't need a real database yet, the way to make a change
-visible to *everyone* who opens the link is to bake it into the source and
-redeploy:
+There are two different ways to change what's in the data now, and they do
+different things:
 
-1. Open `src/App.jsx`.
-2. Find `const seedApplications = () => [ ... ]` near the top.
-3. Add, edit, or remove an application object in that array. Match the shape
-   of the existing entries (see any one of the five for the full field list —
-   `ref`, `company`, `employees`, `scores`, etc.).
-4. Commit and push to `main`. The GitHub Actions workflow rebuilds and
-   redeploys automatically — give it about a minute.
+**To edit live data directly (fastest, no redeploy needed):** open the
+[Firebase console](https://console.firebase.google.com) → your project →
+Realtime Database → `applications`. You can edit, add, or delete entries
+right there, and every open tab of the app updates within a second or two.
 
-That new baseline is now what *everyone* sees when they open the link, until
-you change it again.
+**To change the one-time seed data** (only matters the *first* time the
+database is ever empty — e.g. if you wipe it and want a fresh baseline):
+1. Open `src/App.jsx`, find `const seedApplications = () => [ ... ]`
+2. Edit the array — match the shape of the existing entries
+3. In the Firebase console, delete everything under `applications` (this
+   makes the database empty again)
+4. Reload the app once — it detects the empty database and writes your
+   updated seed data back in
+
+Editing `seedApplications()` alone does **not** change already-seeded data —
+that function only runs once, the very first time the database is empty.
 
 ## 5. The "Suggest starting scores" button and the API
 
@@ -95,12 +107,32 @@ per the current scope.
 - **Scoring rubric and weighted-total math**: fully real and functional —
   not a mockup. The weights, formula, and recommendation bands are all live.
 
-## 7. Changelog
+## 8. Firebase (real shared data)
 
-The app displays its current version number in the top gold bar (e.g. `v1.4.0`).
+As of v1.5.0, application and scoring data is stored in a real Firebase
+Realtime Database (`src/firebase.js`) instead of only browser memory.
+Everyone who opens the deployed link sees the same live data, and changes
+sync in real time — the top bar shows **Live** / **Connecting…** / **Offline
+(local only)** so it's obvious if the connection ever drops (the app still
+works fully offline, it just won't sync).
+
+**Security note:** the database is currently running in Firestore/RTDB "test
+mode" — open read/write for anyone with the URL, including the Vetting
+Committee scoring data. That's a reasonable tradeoff for an interview demo
+where the login gate is explicitly not real authentication anyway, but it's
+worth tightening (e.g. requiring a shared key for writes to `/applications/*`
+status and score fields) before this becomes anything more than a demo.
+
+## 9. Changelog
+
+The app displays its current version number in the top gold bar (e.g. `v1.5.0`).
 Update `APP_VERSION` in `src/App.jsx` and add an entry here with every
 meaningful change, so this file always reflects what's actually deployed.
 
+- **1.5.0** — Connected to a real Firebase Realtime Database. Application
+  and scoring data now persists and syncs live across every visitor instead
+  of resetting per browser tab. Added a Live/Connecting/Offline indicator to
+  the top bar.
 - **1.4.0** — Fixed a dead-end: the "Back" button on the first step of the
   application form was disabled with no way to return to the landing page.
   It now routes Home from step 1. Added Home / Visit Automation Alley /
